@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import './App.css'
 
 function App() {
   const [posts, setPosts] = useState([])
@@ -13,14 +14,12 @@ function App() {
   const [editingId, setEditingId] = useState(null)
   const [editContent, setEditContent] = useState('')
 
-  // Load posts on startup
   useEffect(() => {
     fetch('http://127.0.0.1:8000/api/posts/')
       .then(response => response.json())
       .then(data => setPosts(data))
   }, [])
 
-  // Handle User Login
   const handleLogin = (e) => {
     e.preventDefault()
     fetch('http://127.0.0.1:8000/api/login/', {
@@ -41,13 +40,11 @@ function App() {
       .catch(err => alert(err.message))
   }
 
-  // Handle Logout
   const handleLogout = () => {
     setToken('')
     localStorage.removeItem('token')
   }
 
-  // Create Post (Requires Token)
   const handleSubmit = (e) => {
     e.preventDefault()
 
@@ -55,9 +52,9 @@ function App() {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
-        'Authorization': `Token ${token}` // Token attached here
+        'Authorization': `Token ${token}`
       },
-      body: JSON.stringify({ content: newContent }) // Notice: no hardcoded author needed!
+      body: JSON.stringify({ content: newContent })
     })
       .then(response => response.json())
       .then(newPost => {
@@ -66,7 +63,6 @@ function App() {
       })
   }
 
-  // Delete Post (Requires Token)
   const handleDelete = (id) => {
     fetch(`http://127.0.0.1:8000/api/posts/${id}/`, {
       method: 'DELETE',
@@ -83,7 +79,6 @@ function App() {
     setEditContent(post.content)
   }
 
-  // Update Post (Requires Token)
   const handleUpdate = (id) => {
     fetch(`http://127.0.0.1:8000/api/posts/${id}/`, {
       method: 'PUT',
@@ -101,88 +96,91 @@ function App() {
   }
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', fontFamily: 'sans-serif', padding: '20px' }}>
-      <h1>DevPulse Feed</h1>
+    <div className="app-container">
+      <header className="header">
+        <h1>DevPulse</h1>
+        {token && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <span className="status-badge">● Logged In</span>
+            <button onClick={handleLogout} className="btn btn-secondary">Logout</button>
+          </div>
+        )}
+      </header>
 
-      {/* Authentication Bar */}
-      {!token ? (
-        <form onSubmit={handleLogin} style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '5px', marginBottom: '20px' }}>
-          <h3>Log In</h3>
-          <input 
-            type="text" 
-            placeholder="Username" 
-            value={username} 
-            onChange={(e) => setUsername(e.target.value)} 
-            style={{ marginRight: '10px', padding: '5px' }}
-            required 
-          />
-          <input 
-            type="password" 
-            placeholder="Password" 
-            value={password} 
-            onChange={(e) => setPassword(e.target.value)} 
-            style={{ marginRight: '10px', padding: '5px' }}
-            required 
-          />
-          <button type="submit" style={{ padding: '5px 15px' }}>Login</button>
-        </form>
-      ) : (
-        <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ color: 'green', fontWeight: 'bold' }}>✓ Logged In</span>
-          <button onClick={handleLogout} style={{ padding: '5px 10px' }}>Logout</button>
+      {/* Login Card */}
+      {!token && (
+        <div className="card auth-card">
+          <h3>Welcome Back</h3>
+          <form onSubmit={handleLogin} style={{ display: 'flex', gap: '10px' }}>
+            <input 
+              className="input-field"
+              type="text" 
+              placeholder="Username" 
+              value={username} 
+              onChange={(e) => setUsername(e.target.value)} 
+              required 
+            />
+            <input 
+              className="input-field"
+              type="password" 
+              placeholder="Password" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              required 
+            />
+            <button type="submit" className="btn btn-primary">Login</button>
+          </form>
         </div>
       )}
 
-      {/* Create Post Form (Only shown if logged in) */}
+      {/* Create Post Form */}
       {token && (
-        <form onSubmit={handleSubmit} style={{ marginBottom: '20px' }}>
-          <input 
-            type="text" 
-            value={newContent}
-            onChange={(e) => setNewContent(e.target.value)}
-            placeholder="What's on your mind?" 
-            style={{ width: '70%', padding: '8px' }}
-            required
-          />
-          <button type="submit" style={{ padding: '8px 16px', marginLeft: '10px' }}>
-            Post
-          </button>
-        </form>
+        <div className="card">
+          <form onSubmit={handleSubmit} className="post-form">
+            <input 
+              className="input-field"
+              type="text" 
+              value={newContent}
+              onChange={(e) => setNewContent(e.target.value)}
+              placeholder="Share what you are building..." 
+              required
+            />
+            <button type="submit" className="btn btn-primary">Post</button>
+          </form>
+        </div>
       )}
 
-      {/* Posts Feed */}
+      {/* Feed List */}
       {posts.map(post => (
-        <div key={post.id} style={{ border: '1px solid #ccc', margin: '10px 0', padding: '15px', borderRadius: '5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          
+        <div key={post.id} className="card post-card">
           {editingId === post.id ? (
-            <div style={{ flexGrow: 1, marginRight: '10px' }}>
+            <div className="edit-box">
               <input 
+                className="input-field"
                 type="text" 
                 value={editContent} 
                 onChange={(e) => setEditContent(e.target.value)}
-                style={{ width: '90%', padding: '5px' }}
               />
-              <button onClick={() => handleUpdate(post.id)} style={{ marginLeft: '5px', padding: '5px 10px' }}>Save</button>
-              <button onClick={() => setEditingId(null)} style={{ marginLeft: '5px', padding: '5px 10px' }}>Cancel</button>
+              <div className="action-buttons">
+                <button onClick={() => handleUpdate(post.id)} className="btn btn-primary">Save</button>
+                <button onClick={() => setEditingId(null)} className="btn btn-secondary">Cancel</button>
+              </div>
             </div>
           ) : (
-            <div>
-              <p style={{ margin: '0 0 10px 0' }}>{post.content}</p>
-              <small style={{ color: 'gray' }}>Author ID: {post.author}</small>
-            </div>
-          )}
+            <>
+              <div className="post-content">
+                <p>{post.content}</p>
+                <span className="post-author">Author ID: {post.author}</span>
+              </div>
 
-          {token && editingId !== post.id && (
-            <div>
-              <button onClick={() => startEdit(post)} style={{ marginRight: '5px', padding: '5px 10px', cursor: 'pointer' }}>
-                Edit
-              </button>
-              <button onClick={() => handleDelete(post.id)} style={{ backgroundColor: '#ff4444', color: 'white', border: 'none', borderRadius: '3px', padding: '5px 10px', cursor: 'pointer' }}>
-                Delete
-              </button>
-            </div>
+              {token && (
+                <div className="action-buttons">
+                  <button onClick={() => startEdit(post)} className="btn btn-secondary">Edit</button>
+                  <button onClick={() => handleDelete(post.id)} className="btn btn-danger">Delete</button>
+                </div>
+              )}
+            </>
           )}
-
         </div>
       ))}
     </div>
