@@ -7,6 +7,7 @@ function App() {
   
   // Auth state
   const [token, setToken] = useState(localStorage.getItem('token') || '')
+  const [currentUser, setCurrentUser] = useState(localStorage.getItem('currentUser') || '')
   const [isRegistering, setIsRegistering] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -34,7 +35,9 @@ function App() {
       })
       .then(data => {
         setToken(data.token)
+        setCurrentUser(username)
         localStorage.setItem('token', data.token)
+        localStorage.setItem('currentUser', username)
         setUsername('')
         setPassword('')
       })
@@ -54,7 +57,9 @@ function App() {
           alert(data.error)
         } else {
           setToken(data.token)
+          setCurrentUser(data.username)
           localStorage.setItem('token', data.token)
+          localStorage.setItem('currentUser', data.username)
           setUsername('')
           setPassword('')
         }
@@ -64,7 +69,9 @@ function App() {
 
   const handleLogout = () => {
     setToken('')
+    setCurrentUser('')
     localStorage.removeItem('token')
+    localStorage.removeItem('currentUser')
   }
 
   const handleSubmit = (e) => {
@@ -91,8 +98,12 @@ function App() {
       headers: {
         'Authorization': `Token ${token}`
       }
-    }).then(() => {
-      setPosts(posts.filter(post => post.id !== id))
+    }).then(res => {
+      if (res.ok) {
+        setPosts(posts.filter(post => post.id !== id))
+      } else {
+        alert("You are not authorized to delete this post.")
+      }
     })
   }
 
@@ -110,11 +121,15 @@ function App() {
       },
       body: JSON.stringify({ content: editContent })
     })
-      .then(response => response.json())
+      .then(res => {
+        if (!res.ok) throw new Error("Not authorized to edit this post")
+        return res.json()
+      })
       .then(updatedPost => {
         setPosts(posts.map(p => p.id === id ? updatedPost : p))
         setEditingId(null)
       })
+      .catch(err => alert(err.message))
   }
 
   return (
@@ -123,7 +138,7 @@ function App() {
         <h1>DevPulse</h1>
         {token && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <span className="status-badge">● Logged In</span>
+            <span className="status-badge">● Logged in as @{currentUser}</span>
             <button onClick={handleLogout} className="btn btn-secondary">Logout</button>
           </div>
         )}
@@ -210,7 +225,8 @@ function App() {
                 <span className="post-author">Posted by @{post.author}</span>
               </div>
 
-              {token && (
+              {/* Only show Edit/Delete if the post author matches the logged-in user */}
+              {token && post.author === currentUser && (
                 <div className="action-buttons">
                   <button onClick={() => startEdit(post)} className="btn btn-secondary">Edit</button>
                   <button onClick={() => handleDelete(post.id)} className="btn btn-danger">Delete</button>

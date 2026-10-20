@@ -34,6 +34,10 @@ def post_detail(request, pk):
     except Post.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
+    # Ownership check: Ensure the logged-in user owns this post
+    if post.author != request.user:
+        return Response({'error': 'You can only modify your own posts.'}, status=status.HTTP_403_FORBIDDEN)
+
     if request.method == 'DELETE':
         post.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
