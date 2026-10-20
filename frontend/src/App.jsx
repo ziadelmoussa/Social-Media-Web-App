@@ -7,6 +7,7 @@ function App() {
   
   // Auth state
   const [token, setToken] = useState(localStorage.getItem('token') || '')
+  const [isRegistering, setIsRegistering] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
 
@@ -36,6 +37,27 @@ function App() {
         localStorage.setItem('token', data.token)
         setUsername('')
         setPassword('')
+      })
+      .catch(err => alert(err.message))
+  }
+
+  const handleRegister = (e) => {
+    e.preventDefault()
+    fetch('http://127.0.0.1:8000/api/register/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          alert(data.error)
+        } else {
+          setToken(data.token)
+          localStorage.setItem('token', data.token)
+          setUsername('')
+          setPassword('')
+        }
       })
       .catch(err => alert(err.message))
   }
@@ -107,29 +129,44 @@ function App() {
         )}
       </header>
 
-      {/* Login Card */}
+      {/* Auth Form (Login or Register) */}
       {!token && (
         <div className="card auth-card">
-          <h3>Welcome Back</h3>
-          <form onSubmit={handleLogin} style={{ display: 'flex', gap: '10px' }}>
-            <input 
-              className="input-field"
-              type="text" 
-              placeholder="Username" 
-              value={username} 
-              onChange={(e) => setUsername(e.target.value)} 
-              required 
-            />
-            <input 
-              className="input-field"
-              type="password" 
-              placeholder="Password" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
-              required 
-            />
-            <button type="submit" className="btn btn-primary">Login</button>
+          <h3>{isRegistering ? 'Create an Account' : 'Welcome Back'}</h3>
+          <form onSubmit={isRegistering ? handleRegister : handleLogin} style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <input 
+                className="input-field"
+                type="text" 
+                placeholder="Username" 
+                value={username} 
+                onChange={(e) => setUsername(e.target.value)} 
+                required 
+                style={{ flexGrow: 1 }}
+              />
+              <input 
+                className="input-field"
+                type="password" 
+                placeholder="Password" 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                required 
+                style={{ flexGrow: 1 }}
+              />
+              <button type="submit" className="btn btn-primary">
+                {isRegistering ? 'Register' : 'Login'}
+              </button>
+            </div>
           </form>
+          <p style={{ marginTop: '12px', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+            {isRegistering ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <span 
+              onClick={() => setIsRegistering(!isRegistering)} 
+              style={{ color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              {isRegistering ? 'Log In' : 'Sign Up'}
+            </span>
+          </p>
         </div>
       )}
 
@@ -170,7 +207,7 @@ function App() {
             <>
               <div className="post-content">
                 <p>{post.content}</p>
-                <span className="post-author">Author ID: {post.author}</span>
+                <span className="post-author">Posted by @{post.author}</span>
               </div>
 
               {token && (
