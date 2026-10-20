@@ -132,6 +132,22 @@ function App() {
       .catch(err => alert(err.message))
   }
 
+
+  const handleLike = (id) => {
+  if (!token) return alert('Please log in to like posts.')
+
+  fetch(`http://127.0.0.1:8000/api/posts/${id}/like/`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Token ${token}`
+    }
+  })
+    .then(res => res.json())
+    .then(updatedPost => {
+      setPosts(posts.map(p => p.id === id ? updatedPost : p))
+    })
+}
+
   return (
     <div className="app-container">
       <header className="header">
@@ -222,9 +238,17 @@ function App() {
             <>
               <div className="post-content">
                 <p>{post.content}</p>
-                <span className="post-author">Posted by @{post.author}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span className="post-author">Posted by @{post.author}</span>
+                  <button 
+                    onClick={() => handleLike(post.id)} 
+                    className="btn btn-secondary"
+                    style={{ padding: '2px 8px', fontSize: '0.85rem' }}
+                  >
+                    {post.is_liked ? '❤️' : '🤍'} {post.likes_count}
+                  </button>
+                </div>
               </div>
-
               {/* Only show Edit/Delete if the post author matches the logged-in user */}
               {token && post.author === currentUser && (
                 <div className="action-buttons">

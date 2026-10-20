@@ -1,30 +1,27 @@
 from django.shortcuts import render
+from django.contrib.auth.models import User
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated, AllowAny
 from rest_framework.response import Response 
 from rest_framework import status
+from rest_framework.authtoken.models import Token
 from .models import Post
 from .serializers import PostSerializers
-from django.contrib.auth.models import User
-from rest_framework.authtoken.models import Token
-from rest_framework.permissions import AllowAny
 
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticatedOrReadOnly])
 def post_list(request):
     if request.method == 'GET':
-        posts = Post.objects.all()
-        serializer = PostSerializers(posts, many=True)
+        posts = Post.objects.all().order_by('-created_at')
+        serializer = PostSerializers(posts, many=True, context={'request': request})
         return Response(serializer.data)
         
     elif request.method == 'POST':
-        serializer = PostSerializers(data=request.data)
+        serializer = PostSerializers(data=request.data, context={'request': request})
         if serializer.is_valid():
-            # Pass the logged-in user here!
             serializer.save(author=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 @api_view(['DELETE', 'PUT'])
 @permission_classes([IsAuthenticatedOrReadOnly])
@@ -34,7 +31,6 @@ def post_detail(request, pk):
     except Post.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
-    # Ownership check: Ensure the logged-in user owns this post
     if post.author != request.user:
         return Response({'error': 'You can only modify your own posts.'}, status=status.HTTP_403_FORBIDDEN)
 
@@ -43,12 +39,27 @@ def post_detail(request, pk):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     elif request.method == 'PUT':
-        serializer = PostSerializers(post, data=request.data)
+        serializer = PostSerializers(post, data=request.data, context={'request': request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def toggle_like(request, pk):
+    try:
+        post = Post.objects.get(pk=pk)
+    except Post.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if post.likes.filter(id=request.user.id).exists():
+        post.likes.remove(request.user)
+    else:
+        post.likes.add(request.user)
+
+    serializer = PostSerializers(post, context={'request': request})
+    return Response(serializer.data)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
