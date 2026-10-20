@@ -12,7 +12,12 @@ from .serializers import PostSerializers
 @permission_classes([IsAuthenticatedOrReadOnly])
 def post_list(request):
     if request.method == 'GET':
-        posts = Post.objects.all().order_by('-created_at')
+        author_username = request.query_params.get('author', None)
+        if author_username:
+            posts = Post.objects.filter(author__username=author_username).order_by('-created_at')
+        else:
+            posts = Post.objects.all().order_by('-created_at')
+            
         serializer = PostSerializers(posts, many=True, context={'request': request})
         return Response(serializer.data)
         

@@ -4,6 +4,7 @@ import './App.css'
 function App() {
   const [posts, setPosts] = useState([])
   const [newContent, setNewContent] = useState('')
+  const [selectedProfile, setSelectedProfile] = useState(null)
   
   // Auth state
   const [token, setToken] = useState(localStorage.getItem('token') || '')
@@ -16,11 +17,22 @@ function App() {
   const [editingId, setEditingId] = useState(null)
   const [editContent, setEditContent] = useState('')
 
-  useEffect(() => {
-    fetch('http://127.0.0.1:8000/api/posts/')
+  // Fetch posts (Global Feed or Specific User Profile)
+  const fetchPosts = () => {
+    const url = selectedProfile 
+      ? `http://127.0.0.1:8000/api/posts/?author=${selectedProfile}`
+      : 'http://127.0.0.1:8000/api/posts/'
+
+    fetch(url, {
+      headers: token ? { 'Authorization': `Token ${token}` } : {}
+    })
       .then(response => response.json())
       .then(data => setPosts(data))
-  }, [])
+  }
+
+  useEffect(() => {
+    fetchPosts()
+  }, [selectedProfile, token])
 
   const handleLogin = (e) => {
     e.preventDefault()
@@ -87,8 +99,25 @@ function App() {
     })
       .then(response => response.json())
       .then(newPost => {
-        setPosts([newPost, ...posts])
+        if (!selectedProfile || selectedProfile === currentUser) {
+          setPosts([newPost, ...posts])
+        }
         setNewContent('')
+      })
+  }
+
+  const handleLike = (id) => {
+    if (!token) return alert('Please log in to like posts.')
+
+    fetch(`http://127.0.0.1:8000/api/posts/${id}/like/`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${token}`
+      }
+    })
+      .then(res => res.json())
+      .then(updatedPost => {
+        setPosts(posts.map(p => p.id === id ? updatedPost : p))
       })
   }
 
@@ -132,33 +161,35 @@ function App() {
       .catch(err => alert(err.message))
   }
 
-
-  const handleLike = (id) => {
-  if (!token) return alert('Please log in to like posts.')
-
-  fetch(`http://127.0.0.1:8000/api/posts/${id}/like/`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Token ${token}`
-    }
-  })
-    .then(res => res.json())
-    .then(updatedPost => {
-      setPosts(posts.map(p => p.id === id ? updatedPost : p))
-    })
-}
-
   return (
     <div className="app-container">
       <header className="header">
-        <h1>DevPulse</h1>
+        <h1 onClick={() => setSelectedProfile(null)} style={{ cursor: 'pointer' }}>
+          DevPulse
+        </h1>
         {token && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <span className="status-badge">● Logged in as @{currentUser}</span>
+            <span 
+              className="status-badge" 
+              onClick={() => setSelectedProfile(currentUser)}
+              style={{ cursor: 'pointer' }}
+            >
+              ● @{currentUser}
+            </span>
             <button onClick={handleLogout} className="btn btn-secondary">Logout</button>
           </div>
         )}
       </header>
+
+      {/* Profile Header / Navigation Banner */}
+      {selectedProfile && (
+        <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2>Viewing Posts by @{selectedProfile}</h2>
+          <button onClick={() => setSelectedProfile(null)} className="btn btn-secondary">
+            ← Back to Feed
+          </button>
+        </div>
+      )}
 
       {/* Auth Form (Login or Register) */}
       {!token && (
@@ -202,7 +233,7 @@ function App() {
       )}
 
       {/* Create Post Form */}
-      {token && (
+      {token && !selectedProfile && (
         <div className="card">
           <form onSubmit={handleSubmit} className="post-form">
             <input 
@@ -219,47 +250,57 @@ function App() {
       )}
 
       {/* Feed List */}
-      {posts.map(post => (
-        <div key={post.id} className="card post-card">
-          {editingId === post.id ? (
-            <div className="edit-box">
-              <input 
-                className="input-field"
-                type="text" 
-                value={editContent} 
-                onChange={(e) => setEditContent(e.target.value)}
-              />
-              <div className="action-buttons">
-                <button onClick={() => handleUpdate(post.id)} className="btn btn-primary">Save</button>
-                <button onClick={() => setEditingId(null)} className="btn btn-secondary">Cancel</button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="post-content">
-                <p>{post.content}</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span className="post-author">Posted by @{post.author}</span>
-                  <button 
-                    onClick={() => handleLike(post.id)} 
-                    className="btn btn-secondary"
-                    style={{ padding: '2px 8px', fontSize: '0.85rem' }}
-                  >
-                    {post.is_liked ? '❤️' : '🤍'} {post.likes_count}
-                  </button>
-                </div>
-              </div>
-              {/* Only show Edit/Delete if the post author matches the logged-in user */}
-              {token && post.author === currentUser && (
+      {posts.length === 0 ? (
+        <div className="card"><p style={{ color: 'var(--text-muted)', margin: 0 }}>No posts found.</p></div>
+      ) : (
+        posts.map(post => (
+          <div key={post.id} className="card post-card">
+            {editingId === post.id ? (
+              <div className="edit-box">
+                <input 
+                  className="input-field"
+                  type="text" 
+                  value={editContent} 
+                  onChange={(e) => setEditContent(e.target.value)}
+                />
                 <div className="action-buttons">
-                  <button onClick={() => startEdit(post)} className="btn btn-secondary">Edit</button>
-                  <button onClick={() => handleDelete(post.id)} className="btn btn-danger">Delete</button>
+                  <button onClick={() => handleUpdate(post.id)} className="btn btn-primary">Save</button>
+                  <button onClick={() => setEditingId(null)} className="btn btn-secondary">Cancel</button>
                 </div>
-              )}
-            </>
-          )}
-        </div>
-      ))}
+              </div>
+            ) : (
+              <>
+                <div className="post-content">
+                  <p>{post.content}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span 
+                      className="post-author" 
+                      onClick={() => setSelectedProfile(post.author)}
+                      style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                    >
+                      Posted by @{post.author}
+                    </span>
+                    <button 
+                      onClick={() => handleLike(post.id)} 
+                      className="btn btn-secondary"
+                      style={{ padding: '2px 8px', fontSize: '0.85rem' }}
+                    >
+                      {post.is_liked ? '❤️' : '🤍'} {post.likes_count}
+                    </button>
+                  </div>
+                </div>
+
+                {token && post.author === currentUser && (
+                  <div className="action-buttons">
+                    <button onClick={() => startEdit(post)} className="btn btn-secondary">Edit</button>
+                    <button onClick={() => handleDelete(post.id)} className="btn btn-danger">Delete</button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        ))
+      )}
     </div>
   )
 }
